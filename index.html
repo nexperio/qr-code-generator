@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Code QR</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Styles pour l'embed */
+        .qr-embed {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            width: 100%;
+            height: 100%;
+            min-height: 600px;
+            background: linear-gradient(135deg, #faf5ff 0%, #eff6ff 50%, #e0e7ff 100%);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        
+        /* Reset pour iframe */
+        .qr-embed * {
+            box-sizing: border-box;
+        }
+        
+        /* Styles responsifs pour embed */
+        @media (max-width: 768px) {
+            .qr-embed {
+                min-height: 800px;
+            }
+        }
+        
+        /* Configuration Tailwind pour éviter les conflits */
+        .qr-embed .gradient-text {
+            background: linear-gradient(135deg, #8b5cf6, #3b82f6);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div id="qr-generator-root" class="qr-embed"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        const TRANSLATIONS = {
+          "en-US": {
+            "appTitle": "QR Code Generator",
+            "appDescription": "Generate QR codes for URLs, text, and contact information",
+            "urlTab": "URL",
+            "textTab": "Text",
+            "contactTab": "Contact",
+            "enterUrl": "Enter URL",
+            "enterText": "Enter Text",
+            "contactInformation": "Contact Information",
+            "websiteUrl": "Website URL",
+            "urlPlaceholder": "example.com or https://example.com",
+            "urlHelp": "Enter a website URL. If you don't include http://, we'll add https:// automatically.",
+            "textContent": "Text Content",
+            "textPlaceholder": "Enter any text to generate QR code...",
+            "firstName": "First Name",
+            "firstNamePlaceholder": "John",
+            "lastName": "Last Name",
+            "lastNamePlaceholder": "Doe",
+            "phoneNumber": "Phone Number",
+            "phonePlaceholder": "+1 (555) 123-4567",
+            "emailAddress": "Email Address",
+            "emailPlaceholder": "john.doe@example.com",
+            "organization": "Organization",
+            "organizationPlaceholder": "Company Name",
+            "website": "Website",
+            "websitePlaceholder": "https://example.com",
+            "clearAllFields": "Clear All Fields",
+            "generatedQrCode": "Generated QR Code",
+            "scanQrCode": "Scan this QR code with your device",
+            "fillFormPrompt": "Fill in the form to generate your QR code",
+            "download": "Download",
+            "copyData": "Copy Data",
+            "copied": "Copied!",
+            "qrCodeData": "QR Code Data:",
+            "footerText": "Generate QR codes instantly • No data stored • Free to use",
+            "qrCodeAlt": "Generated QR Code"
+          },
+          "fr-FR": {
+            "appTitle": "Générateur de Code QR",
+            "appDescription": "Générez des codes QR pour URLs, texte et informations de contact",
+            "urlTab": "URL",
+            "textTab": "Texte",
+            "contactTab": "Contact",
+            "enterUrl": "Entrer l'URL",
+            "enterText": "Entrer le Texte",
+            "contactInformation": "Informations de Contact",
+            "websiteUrl": "URL du Site Web",
+            "urlPlaceholder": "exemple.com ou https://exemple.com",
+            "urlHelp": "Entrez une URL de site web. Si vous n'incluez pas http://, nous ajouterons https:// automatiquement.",
+            "textContent": "Contenu Texte",
+            "textPlaceholder": "Entrez n'importe quel texte pour générer le code QR...",
+            "firstName": "Prénom",
+            "firstNamePlaceholder": "Jean",
+            "lastName": "Nom de Famille",
+            "lastNamePlaceholder": "Dupont",
+            "phoneNumber": "Numéro de Téléphone",
+            "phonePlaceholder": "+33 1 23 45 67 89",
+            "emailAddress": "Adresse Email",
+            "emailPlaceholder": "jean.dupont@exemple.com",
+            "organization": "Organisation",
+            "organizationPlaceholder": "Nom de l'Entreprise",
+            "website": "Site Web",
+            "websitePlaceholder": "https://exemple.com",
+            "clearAllFields": "Effacer Tous les Champs",
+            "generatedQrCode": "Code QR Généré",
+            "scanQrCode": "Scannez ce code QR avec votre appareil",
+            "fillFormPrompt": "Remplissez le formulaire pour générer votre code QR",
+            "download": "Télécharger",
+            "copyData": "Copier les Données",
+            "copied": "Copié !",
+            "qrCodeData": "Données du Code QR :",
+            "footerText": "Générez des codes QR instantanément • Aucune donnée stockée • Gratuit",
+            "qrCodeAlt": "Code QR Généré"
+          },
+          "es-ES": {
+            "appTitle": "Generador de Códigos QR",
+            "appDescription": "Genera códigos QR para URLs, texto e información de contacto",
+            "urlTab": "URL",
+            "textTab": "Texto",
+            "contactTab": "Contacto",
+            "enterUrl": "Ingresa URL",
+            "enterText": "Ingresa Texto",
+            "contactInformation": "Información de Contacto",
+            "websiteUrl": "URL del Sitio Web",
+            "urlPlaceholder": "ejemplo.com o https://ejemplo.com",
+            "urlHelp": "Ingresa una URL de sitio web. Si no incluyes http://, agregaremos https:// automáticamente.",
+            "textContent": "Contenido de Texto",
+            "textPlaceholder": "Ingresa cualquier texto para generar código QR...",
+            "firstName": "Nombre",
+            "firstNamePlaceholder": "Juan",
+            "lastName": "Apellido",
+            "lastNamePlaceholder": "Pérez",
+            "phoneNumber": "Número de Teléfono",
+            "phonePlaceholder": "+34 123 456 789",
+            "emailAddress": "Dirección de Correo",
+            "emailPlaceholder": "juan.perez@ejemplo.com",
+            "organization": "Organización",
+            "organizationPlaceholder": "Nombre de la Empresa",
+            "website": "Sitio Web",
+            "websitePlaceholder": "https://ejemplo.com",
+            "clearAllFields": "Limpiar Todos los Campos",
+            "generatedQrCode": "Código QR Generado",
+            "scanQrCode": "Escanea este código QR con tu dispositivo",
+            "fillFormPrompt": "Completa el formulario para generar tu código QR",
+            "download": "Descargar",
+            "copyData": "Copiar Datos",
+            "copied": "¡Copiado!",
+            "qrCodeData": "Datos del Código QR:",
+            "footerText": "Genera códigos QR al instante • No se almacenan datos • Gratis",
+            "qrCodeAlt": "Código QR Generado"
+          },
+          "it-IT": {
+            "appTitle": "Generatore di Codici QR",
+            "appDescription": "Genera codici QR per URL, testo e informazioni di contatto",
+            "urlTab": "URL",
+            "textTab": "Testo",
+            "contactTab": "Contatto",
+            "enterUrl": "Inserisci URL",
+            "enterText": "Inserisci Testo",
+            "contactInformation": "Informazioni di Contatto",
+            "websiteUrl": "URL del Sito Web",
+            "urlPlaceholder": "esempio.com o https://esempio.com",
+            "urlHelp": "Inserisci un URL del sito web. Se non includi http://, aggiungeremo https:// automaticamente.",
+            "textContent": "Contenuto del Testo",
+            "textPlaceholder": "Inserisci qualsiasi testo per generare il codice QR...",
+            "firstName": "Nome",
+            "firstNamePlaceholder": "Marco",
+            "lastName": "Cognome",
+            "lastNamePlaceholder": "Rossi",
+            "phoneNumber": "Numero di Telefono",
+            "phonePlaceholder": "+39 123 456 789",
+            "emailAddress": "Indirizzo Email",
+            "emailPlaceholder": "marco.rossi@esempio.com",
+            "organization": "Organizzazione",
+            "organizationPlaceholder": "Nome dell'Azienda",
+            "website": "Sito Web",
+            "websitePlaceholder": "https://esempio.com",
+            "clearAllFields": "Cancella Tutti i Campi",
+            "generatedQrCode": "Codice QR Generato",
+            "scanQrCode": "Scansiona questo codice QR con il tuo dispositivo",
+            "fillFormPrompt": "Compila il modulo per generare il tuo codice QR",
+            "download": "Scarica",
+            "copyData": "Copia Dati",
+            "copied": "Copiato!",
+            "qrCodeData": "Dati del Codice QR:",
+            "footerText": "Genera codici QR istantaneamente • Nessun dato memorizzato • Gratuito",
+            "qrCodeAlt": "Codice QR Generato"
+          },
+          "de-DE": {
+            "appTitle": "QR-Code Generator",
+            "appDescription": "Erstellen Sie QR-Codes für URLs, Text und Kontaktinformationen",
+            "urlTab": "URL",
+            "textTab": "Text",
+            "contactTab": "Kontakt",
+            "enterUrl": "URL eingeben",
+            "enterText": "Text eingeben",
+            "contactInformation": "Kontaktinformationen",
+            "websiteUrl": "Website-URL",
+            "urlPlaceholder": "beispiel.com oder https://beispiel.com",
+            "urlHelp": "Geben Sie eine Website-URL ein. Wenn Sie http:// nicht angeben, fügen wir automatisch https:// hinzu.",
+            "textContent": "Textinhalt",
+            "textPlaceholder": "Geben Sie beliebigen Text ein, um einen QR-Code zu erstellen...",
+            "firstName": "Vorname",
+            "firstNamePlaceholder": "Max",
+            "lastName": "Nachname",
+            "lastNamePlaceholder": "Mustermann",
+            "phoneNumber": "Telefonnummer",
+            "phonePlaceholder": "+49 123 456 789",
+            "emailAddress": "E-Mail-Adresse",
+            "emailPlaceholder": "max.mustermann@beispiel.com",
+            "organization": "Organisation",
+            "organizationPlaceholder": "Firmenname",
+            "website": "Website",
+            "websitePlaceholder": "https://beispiel.com",
+            "clearAllFields": "Alle Felder löschen",
+            "generatedQrCode": "Generierter QR-Code",
+            "scanQrCode": "Scannen Sie diesen QR-Code mit Ihrem Gerät",
+            "fillFormPrompt": "Füllen Sie das Formular aus, um Ihren QR-Code zu erstellen",
+            "download": "Herunterladen",
+            "copyData": "Daten kopieren",
+            "copied": "Kopiert!",
+            "qrCodeData": "QR-Code-Daten:",
+            "footerText": "QR-Codes sofort erstellen • Keine Datenspeicherung • Kostenlos",
+            "qrCodeAlt": "Generierter QR-Code"
+          }
+        };
+
+        function QRCodeGenerator() {
+          const [activeTab, setActiveTab] = useState('url');
+          const [qrData, setQrData] = useState('');
+          const [copied, setCopied] = useState(false);
+          const [currentLocale, setCurrentLocale] = useState('fr-FR');
+          const qrContainerRef = useRef(null);
+          
+          const [urlInput, setUrlInput] = useState('');
+          const [textInput, setTextInput] = useState('');
+          const [contactInfo, setContactInfo] = useState({
+            firstName: '',
+            lastName: '',
+            phone: '',
+            email: '',
+            organization: '',
+            url: ''
+          });
+
+          const t = (key) => TRANSLATIONS[currentLocale]?.[key] || TRANSLATIONS['en-US'][key] || key;
+
+          const languages = [
+            { code: 'fr-FR', name: 'Français', flag: '🇫🇷' },
+            { code: 'en-US', name: 'English', flag: '🇺🇸' },
+            { code: 'es-ES', name: 'Español', flag: '🇪🇸' },
+            { code: 'it-IT', name: 'Italiano', flag: '🇮🇹' },
+            { code: 'de-DE', name: 'Deutsch', flag: '🇩🇪' }
+          ];
+
+          const generateQRCode = (text) => {
+            if (!text.trim()) {
+              if (qrContainerRef.current) {
+                qrContainerRef.current.innerHTML = '';
+              }
+              return;
+            }
+
+            try {
+              if (qrContainerRef.current) {
+                qrContainerRef.current.innerHTML = '';
+                const canvas = document.createElement('canvas');
+                qrContainerRef.current.appendChild(canvas);
+                
+                if (window.QRious) {
+                  new window.QRious({
+                    element: canvas,
+                    value: text,
+                    size: 280,
+                    background: 'white',
+                    foreground: 'black',
+                    level: 'M'
+                  });
+                  canvas.className = 'w-full h-auto rounded-xl shadow-lg bg-white max-w-[280px]';
+                }
+              }
+            } catch (error) {
+              console.error('Error creating QR code:', error);
+            }
+          };
+
+          const formatUrl = (url) => {
+            if (!url.trim()) return '';
+            if (!url.startsWith('http://') && !url.startsWith('https://')) {
+              return 'https://' + url;
+            }
+            return url;
+          };
+
+          const generateVCard = (contact) => {
+            return `BEGIN:VCARD
+VERSION:3.0
+FN:${contact.firstName} ${contact.lastName}
+N:${contact.lastName};${contact.firstName};;;
+ORG:${contact.organization}
+TEL:${contact.phone}
+EMAIL:${contact.email}
+URL:${contact.url}
+END:VCARD`;
+          };
+
+          useEffect(() => {
+            let data = '';
+            
+            switch (activeTab) {
+              case 'url':
+                data = formatUrl(urlInput);
+                break;
+              case 'text':
+                data = textInput;
+                break;
+              case 'contact':
+                if (contactInfo.firstName || contactInfo.lastName || contactInfo.phone || contactInfo.email) {
+                  data = generateVCard(contactInfo);
+                }
+                break;
+            }
+            
+            setQrData(data);
+            generateQRCode(data);
+          }, [activeTab, urlInput, textInput, contactInfo]);
+
+          const downloadQRCode = () => {
+            if (!qrData) return;
+            const canvas = qrContainerRef.current?.querySelector('canvas');
+            if (canvas) {
+              const link = document.createElement('a');
+              link.download = `qr-code-${activeTab}.png`;
+              link.href = canvas.toDataURL();
+              link.click();
+            }
+          };
+
+          const copyToClipboard = async () => {
+            if (qrData) {
+              try {
+                await navigator.clipboard.writeText(qrData);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              } catch (err) {
+                console.error('Failed to copy text: ', err);
+              }
+            }
+          };
+
+          const resetForm = () => {
+            setUrlInput('');
+            setTextInput('');
+            setContactInfo({
+              firstName: '',
+              lastName: '',
+              phone: '',
+              email: '',
+              organization: '',
+              url: ''
+            });
+          };
+
+          return (
+            <div className="p-4 h-full">
+              {/* Language Selector */}
+              <div className="flex justify-end mb-4">
+                <select
+                  value={currentLocale}
+                  onChange={(e) => setCurrentLocale(e.target.value)}
+                  className="bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                >
+                  {languages.map((lang) => (
+                    <option key={lang.code} value={lang.code}>
+                      {lang.flag} {lang.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Header */}
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-gradient-to-r from-purple-600 to-blue-600 rounded-xl mb-3">
+                  <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <rect width="5" height="5" x="3" y="3" rx="1"></rect>
+                    <rect width="5" height="5" x="16" y="3" rx="1"></rect>
+                    <rect width="5" height="5" x="3" y="16" rx="1"></rect>
+                    <path d="m21 16-3.5-3.5-2.5 2.5"></path>
+                    <path d="m21 21-3.5-3.5-2.5 2.5"></path>
+                    <path d="m21 11-3.5-3.5-2.5 2.5"></path>
+                  </svg>
+                </div>
+                <h1 className="text-2xl font-bold gradient-text mb-2">
+                  {t('appTitle')}
+                </h1>
+                <p className="text-gray-600 text-sm">{t('appDescription')}</p>
+              </div>
+
+              {/* Main Content */}
+              <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+                {/* Tabs */}
+                <div className="border-b border-gray-200">
+                  <nav className="flex">
+                    {[
+                      { id: 'url', label: t('urlTab'), icon: 'link' },
+                      { id: 'text', label: t('textTab'), icon: 'message' },
+                      { id: 'contact', label: t('contactTab'), icon: 'user' }
+                    ].map((tab) => (
+                      <button
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 text-sm font-medium transition-all ${
+                          activeTab === tab.id
+                            ? 'text-purple-600 border-b-2 border-purple-600 bg-purple-50'
+                            : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        {tab.icon === 'link' && (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+                            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+                          </svg>
+                        )}
+                        {tab.icon === 'message' && (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                          </svg>
+                        )}
+                        {tab.icon === 'user' && (
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                          </svg>
+                        )}
+                        <span className="hidden sm:inline">{tab.label}</span>
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+
+                {/* Content */}
+                <div className="p-6">
+                  <div className="grid lg:grid-cols-2 gap-6">
+                    {/* Form Section */}
+                    <div className="space-y-4">
+                      {/* URL Form */}
+                      {activeTab === 'url' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {t('websiteUrl')}
+                          </label>
+                          <input
+                            type="url"
+                            value={urlInput}
+                            onChange={(e) => setUrlInput(e.target.value)}
+                            placeholder={t('urlPlaceholder')}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">
+                            {t('urlHelp')}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Text Form */}
+                      {activeTab === 'text' && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            {t('textContent')}
+                          </label>
+                          <textarea
+                            value={textInput}
+                            onChange={(e) => setTextInput(e.target.value)}
+                            placeholder={t('textPlaceholder')}
+                            rows={4}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                          />
+                        </div>
+                      )}
+
+                      {/* Contact Form */}
+                      {activeTab === 'contact' && (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                {t('firstName')}
+                              </label>
+                              <input
+                                type="text"
+                                value={contactInfo.firstName}
+                                onChange={(e) => setContactInfo({...contactInfo, firstName: e.target.value})}
+                                placeholder={t('firstNamePlaceholder')}
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-gray-700 mb-1">
+                                {t('lastName')}
+                              </label>
+                              <input
+                                type="text"
+                                value={contactInfo.lastName}
+                                onChange={(e) => setContactInfo({...contactInfo, lastName: e.target.value})}
+                                placeholder={t('lastNamePlaceholder')}
+                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              {t('phoneNumber')}
+                            </label>
+                            <input
+                              type="tel"
+                              value={contactInfo.phone}
+                              onChange={(e) => setContactInfo({...contactInfo, phone: e.target.value})}
+                              placeholder={t('phonePlaceholder')}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              {t('emailAddress')}
+                            </label>
+                            <input
+                              type="email"
+                              value={contactInfo.email}
+                              onChange={(e) => setContactInfo({...contactInfo, email: e.target.value})}
+                              placeholder={t('emailPlaceholder')}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            />
+                          </div>
+                          
+                          <div>
+                            <label className="block text-xs font-medium text-gray-700 mb-1">
+                              {t('organization')}
+                            </label>
+                            <input
+                              type="text"
+                              value={contactInfo.organization}
+                              onChange={(e) => setContactInfo({...contactInfo, organization: e.target.value})}
+                              placeholder={t('organizationPlaceholder')}
+                              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                      )}
+
+                      <button
+                        onClick={resetForm}
+                        className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium text-sm"
+                      >
+                        {t('clearAllFields')}
+                      </button>
+                    </div>
+
+                    {/* QR Code Display */}
+                    <div className="flex flex-col items-center space-y-4">
+                      <h2 className="text-lg font-semibold text-gray-800">{t('generatedQrCode')}</h2>
+                      
+                      <div className="bg-gray-50 rounded-xl p-6 w-full max-w-sm">
+                        {qrData ? (
+                          <div className="text-center">
+                            <div ref={qrContainerRef} className="flex justify-center mb-3">
+                              {/* QR code will be dynamically inserted here */}
+                            </div>
+                            <p className="text-xs text-gray-600">
+                              {t('scanQrCode')}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="text-center py-12">
+                            <svg className="w-12 h-12 text-gray-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <rect width="5" height="5" x="3" y="3" rx="1"></rect>
+                              <rect width="5" height="5" x="16" y="3" rx="1"></rect>
+                              <rect width="5" height="5" x="3" y="16" rx="1"></rect>
+                              <path d="m21 16-3.5-3.5-2.5 2.5"></path>
+                              <path d="m21 21-3.5-3.5-2.5 2.5"></path>
+                              <path d="m21 11-3.5-3.5-2.5 2.5"></path>
+                            </svg>
+                            <p className="text-gray-500 text-sm">
+                              {t('fillFormPrompt')}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {qrData && (
+                        <div className="flex gap-2 w-full max-w-sm">
+                          <button
+                            onClick={downloadQRCode}
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all font-medium text-sm shadow-lg"
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                              <polyline points="7,10 12,15 17,10"></polyline>
+                              <line x1="12" y1="15" x2="12" y2="3"></line>
+                            </svg>
+                            {t('download')}
+                          </button>
+                          
+                          <button
+                            onClick={copyToClipboard}
+                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-all font-medium text-sm"
+                          >
+                            {copied ? (
+                              <>
+                                <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <polyline points="20,6 9,17 4,12"></polyline>
+                                </svg>
+                                {t('copied')}
+                              </>
+                            ) : (
+                              <>
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect>
+                                  <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>
+                                </svg>
+                                {t('copyData')}
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      )}
+
+                      {qrData && (
+                        <div className="w-full max-w-sm">
+                          <h3 className="text-xs font-medium text-gray-700 mb-2">{t('qrCodeData')}</h3>
+                          <div className="bg-gray-100 rounded-lg p-3 text-xs text-gray-600 max-h-20 overflow-y-auto">
+                            <pre className="whitespace-pre-wrap break-words">{qrData}</pre>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="text-center mt-4 text-gray-500 text-xs">
+                <p>{t('footerText')}</p>
+              </div>
+            </div>
+          );
+        }
+
+        // Initialize React app
+        ReactDOM.render(<QRCodeGenerator />, document.getElementById('qr-generator-root'));
+    </script>
+</body>
+</html>
